@@ -1,8 +1,11 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Literal
 
+
 class ReportCreateSchema(BaseModel):
+    country: str = Field(description="Код страны")
     detection_date: str = Field(description="Дата обнаружения")
+    origin_name: str = Field(description="Организация")
     attack_type: str = Field(description="Тип угрозы")
     source_ip: str = Field(description="Источник угрозы. IP-адресс откуда пришел запрос")
     destination_ip: str = Field(description="IP-адресс куда адрессовался запрос")
@@ -16,3 +19,9 @@ class ReportCreateSchema(BaseModel):
     potential_impact: str = Field(description="Потенциальные последствия")
     data_or_payload: str = Field(description="Данные из тела запроса или payload")
     response_actions: str = Field(description="Методы для защиты")
+
+
+class ReportOutSchema(ReportCreateSchema):
+    origin_name: int
+
+    model_config = ConfigDict(from_attributes=True)

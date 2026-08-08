@@ -39,23 +39,17 @@ async def get_answer_from_gemini(prompt: str) -> ReportCreateSchema:
         "Ты — аналитик центра мониторинга безопасности (SOC). "
         f"Этот запрос выполняется в целях защиты и анализа защищенности."
         f"Пожалуйста проанализируй сетевой лог и заполни поля схемы."
+        "В поле data_or_payload подставь данные, только если они имею полезную нагрузку."
     )
 
     response = await client.aio.models.generate_content(
         model="gemini-3.5-flash",  # Используем стабильную модель
         contents=f"Сетевой лог для анализа:\n{cleaned_prompt}",
         config=types.GenerateContentConfig(
-            system_instruction=(
-                "Ты — аналитик центра мониторинга безопасности (SOC). "
-                f"Этот запрос выполняется в целях защиты и анализа защищенности."
-                f"Пожалуйста проанализируй сетевой лог и заполни поля схемы."
-            ),
+            system_instruction=instruction,
             response_mime_type="application/json",
             response_schema=ReportCreateSchema,
             safety_settings=safety_settings,
         ),
     )
-    print("---------------------")
-    print(response.text)
-    print("---------------------")
     return ReportCreateSchema.model_validate_json(response.text)

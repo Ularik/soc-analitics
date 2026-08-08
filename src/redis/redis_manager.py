@@ -1,4 +1,8 @@
 import redis.asyncio as redis
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class RedisManager:
@@ -8,9 +12,17 @@ class RedisManager:
         self.redis = None
 
     async def connect(self):
-        self.redis = await redis.Redis(host=self.host, port=self.port)
+        self.redis = redis.Redis(
+            host=self.host,
+            port=self.port,
+            decode_responses=False
+        )
+        if await self.redis.ping():
+            logger.info('Проверка связи с redis прошла успешно')
+        else:
+            logger.warning('WARNING, Redis не отвечает')
 
-    async def get(self, key: str):
+    async def get(self, key: str) -> str:
         return await self.redis.get(key)
 
     async def set(self, key: str, val: str, expire: int = None):
@@ -24,4 +36,4 @@ class RedisManager:
 
     async def close(self):
         if self.redis:
-            await self.redis.close()
+            await self.redis.aclose()
