@@ -14,8 +14,8 @@ async def get_organizations(request: Request, db: DBDep):
 
 
 @router.post("/get-ai-answer/")
-async def get_answer_for_log(request: Request, body: str = Body(embed=True)):
-    answer = await ReportsService().get_answer_from_ai(body)
+async def get_answer_for_log(request: Request, db: DBDep, body: str = Body(embed=True)):
+    answer = await ReportsService(db).get_answer_from_ai(body)
     return {"result": answer}
 
 

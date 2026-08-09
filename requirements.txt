@@ -4,3 +4,5 @@ google-genai
 reportlab
 redis
 fastapi-cache2[redis]
+asyncpg
+alembic

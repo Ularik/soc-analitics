@@ -23,3 +23,4 @@ class ReportsService(BaseService):
 
     async def create_report(self, body: ReportCreateSchema):   # добавить rabbitmq
         async with DbManager(AsyncSession) as db:
+            pass

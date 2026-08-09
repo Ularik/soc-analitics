@@ -9,6 +9,8 @@ from sqlalchemy import (
     func
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy import LargeBinary
+import uuid
 
 
 class Organization(Base):
@@ -41,7 +43,11 @@ class Reports(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     user_id: Mapped[int | None]
-    organization_id: Mapped[int | None]
+    organization_id: Mapped[int | None] = mapped_column(
+        ForeignKey('public.reports_organization.id', ondelete='SET NULL'),
+        nullable=True,
+        comment="Организация"
+    )
     detection_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, comment="Дата и время выявления угрозы")
     created_date: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
@@ -67,3 +73,26 @@ class Reports(Base):
     risk_assessment: Mapped[str] = mapped_column(String(12), default="Низкая", nullable=False)
     data_or_payload: Mapped[str] = mapped_column(Text, default="", nullable=False)
     response_actions: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    file_content: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    file_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+
+class ReportDelivery(Base):
+    __tablename__ = "reports_delivery"
+    __table_args__ = {"schema": "public"}
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    report_id: Mapped[int] = mapped_column(
+        ForeignKey("reports_report.id", ondelete="CASCADE"),
+        unique=True,  # ровно одна запись на отчёт
+        nullable=False,
+    )
+    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
+    idempotency_key: Mapped[uuid.UUID] = mapped_column(default=uuid.uuid4, unique=True)
+    retry_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    external_report_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    report: Mapped["Reports"] = relationship(back_populates="delivery")
