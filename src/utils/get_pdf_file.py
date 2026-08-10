@@ -5,10 +5,10 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from src.schemas.reports_schemas import ReportCreateSchema
+from src.schemas.reports_schemas import ReportGenerateSchema
 
 
-def generate_report_pdf(report: ReportCreateSchema) -> BytesIO:
+def generate_report_pdf(report: ReportGenerateSchema) -> BytesIO:
     buffer = BytesIO()
 
     # 1. Регистрация шрифта (с фолбэком для разных ОС)
@@ -31,13 +31,14 @@ def generate_report_pdf(report: ReportCreateSchema) -> BytesIO:
     # 3. Заголовок + таблица с данными
     elems = [Paragraph("Отчет по выявлению аномалий средствами SOC", styles['Title']), Spacer(1, 12)]
 
-
-    host_or_cve = [Paragraph("Host", cell), Paragraph(report.host, cell)]
+    host_or_cve = ''
+    if report.host:
+        host_or_cve = [Paragraph("Host", cell), Paragraph(report.host, cell)]
     if report.cve:
         host_or_cve = [Paragraph("CVE", cell), Paragraph(report.cve, cell)]
     data = [
         [Paragraph("Поле", cell), Paragraph("Значение", cell)],
-        [Paragraph("Дата и время", cell), Paragraph(report.detection_date, cell)],
+        [Paragraph("Дата и время", cell), Paragraph(report.detection_date.strftime("%Y-%m-%d"), cell)],
         [Paragraph("Тип угрозы", cell), Paragraph(report.attack_type, cell)],
         [Paragraph("Источник угрозы", cell), Paragraph(report.source_ip, cell)],
         [Paragraph("Адрес назначения", cell), Paragraph(report.destination_ip, cell)],

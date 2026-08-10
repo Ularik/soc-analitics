@@ -1,0 +1,26 @@
+services:
+  api:
+    build: .
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000
+    ports: ["8000:8000"]
+    env_file:
+      - .env
+    depends_on: [postgres, rabbitmq]
+
+  worker:
+    build: .            # тот же Dockerfile, тот же образ
+    command: python -m worker.main
+    env_file:
+      - .env
+    depends_on: [postgres, rabbitmq]
+
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: reports_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports: ["5672:5672", "15672:15672"]  # 15672 — веб-панель управления, полезно для отладки

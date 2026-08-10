@@ -1,7 +1,7 @@
 from google import genai
 from google.genai import types
 from src.config import settings
-from src.schemas.reports_schemas import ReportCreateSchema
+from src.schemas.reports_schemas import ReportGenerateSchema
 import re
 
 
@@ -33,7 +33,7 @@ def sanitize_log(text: str) -> str:
     return re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]", "", text)
 
 
-async def get_answer_from_gemini(prompt: str) -> ReportCreateSchema:
+async def get_answer_from_gemini(prompt: str) -> ReportGenerateSchema:
     cleaned_prompt = sanitize_log(prompt)
     instruction = (
         "Ты — аналитик центра мониторинга безопасности (SOC). "
@@ -48,8 +48,8 @@ async def get_answer_from_gemini(prompt: str) -> ReportCreateSchema:
         config=types.GenerateContentConfig(
             system_instruction=instruction,
             response_mime_type="application/json",
-            response_schema=ReportCreateSchema,
+            response_schema=ReportGenerateSchema,
             safety_settings=safety_settings,
         ),
     )
-    return ReportCreateSchema.model_validate_json(response.text)
+    return ReportGenerateSchema.model_validate_json(response.text)

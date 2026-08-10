@@ -8,14 +8,13 @@ from sqlalchemy import (
     ForeignKey,
     func
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, Relationship
 from sqlalchemy import LargeBinary
 import uuid
 
 
 class Organization(Base):
-    __tablename__ = "reports_organization"
-    __table_args__ = {"schema": "public"}
+    __tablename__ = "organization"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
@@ -37,17 +36,17 @@ class Organization(Base):
 
 
 class Reports(Base):
-    __tablename__ = "reports_report"
-    __table_args__ = {"schema": "public"}
+    __tablename__ = "reports"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     user_id: Mapped[int | None]
     organization_id: Mapped[int | None] = mapped_column(
-        ForeignKey('public.reports_organization.id', ondelete='SET NULL'),
+        ForeignKey('organization.id', ondelete='SET NULL'),
         nullable=True,
         comment="Организация"
     )
+    organization: Mapped[Organization] = relationship()
     detection_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, comment="Дата и время выявления угрозы")
     created_date: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
@@ -76,14 +75,18 @@ class Reports(Base):
     file_content: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     file_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
+    delivery: Mapped[Optional["ReportDelivery"]] = relationship(
+        back_populates="report",
+        uselist=False
+    )
+
 
 class ReportDelivery(Base):
     __tablename__ = "reports_delivery"
-    __table_args__ = {"schema": "public"}
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     report_id: Mapped[int] = mapped_column(
-        ForeignKey("reports_report.id", ondelete="CASCADE"),
+        ForeignKey("reports.id", ondelete="CASCADE"),
         unique=True,  # ровно одна запись на отчёт
         nullable=False,
     )

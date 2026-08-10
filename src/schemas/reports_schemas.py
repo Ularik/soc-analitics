@@ -1,10 +1,11 @@
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from typing import Literal
+from datetime import datetime
+from uuid import UUID
 
-
-class ReportCreateSchema(BaseModel):
+class ReportGenerateSchema(BaseModel):
     country: str = Field(description="Код страны")
-    detection_date: str = Field(description="Дата обнаружения")
+    detection_date: datetime = Field(description="Дата обнаружения")
     origin_name: str = Field(description="Организация")
     attack_type: str = Field(description="Тип угрозы")
     source_ip: str = Field(description="Источник угрозы. IP-адресс откуда пришел запрос")
@@ -20,8 +21,36 @@ class ReportCreateSchema(BaseModel):
     data_or_payload: str = Field(description="Данные из тела запроса или payload")
     response_actions: str = Field(description="Методы для защиты")
 
+    model_config = ConfigDict(from_attributes=True)
 
-class ReportOutSchema(ReportCreateSchema):
-    origin_name: int
+    @field_validator("detection_date", mode="after")
+    @classmethod
+    def make_naive(cls, v: datetime) -> datetime:
+        if v.tzinfo is not None:
+            # Преобразуем в UTC и убираем tzinfo
+            return v.astimezone().replace(tzinfo=None)
+        return v
 
+class ReportCreateSchema(ReportGenerateSchema):
+    file_content: bytes | None = None
+    file_name: str | None = None
+
+
+class ReportDeliverySchema(BaseModel):
+    report_id: int
+    status: Literal["pending", "success", "error"]
+    idempotency_key: UUID
+    retry_count: int = 0
+    last_error: str | None = None
+    sent_at: datetime = datetime.now()
+    external_report_id: int | None = None
+    updated_at: datetime = datetime.now()
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ReportOutSchema(ReportGenerateSchema):
+    origin_name: None = None
+    organization_id: int
+    file_name: str
     model_config = ConfigDict(from_attributes=True)

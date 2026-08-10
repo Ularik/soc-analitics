@@ -4,6 +4,7 @@ from src.logging_conf.logging_conf import setup_logging
 from src.routers.routers import router
 from fastapi.middleware.cors import CORSMiddleware
 from src.redis.init import redis_manager
+from src.rabbitmq.init import rabbit_client
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
 
@@ -12,6 +13,7 @@ from fastapi_cache.backends.redis import RedisBackend
 async def lifespan(app: FastAPI):
     setup_logging()
     await redis_manager.connect()
+    await rabbit_client.connect()
     FastAPICache.init(RedisBackend(redis_manager.redis), prefix="fastapi-cache")
     yield
     await redis_manager.close()
