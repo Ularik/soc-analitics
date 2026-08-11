@@ -22,7 +22,7 @@ class ReportsService(BaseService):
 
         answer = await get_answer_from_gemini(body)
 
-        await redis_manager.set(key, answer.model_dump_json(), expire=20)
+        await redis_manager.set(key, answer.model_dump_json(), expire=60)
         return answer
 
     async def get_reports(self):

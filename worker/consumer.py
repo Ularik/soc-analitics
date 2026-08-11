@@ -2,32 +2,25 @@ import json
 import httpx
 import aio_pika
 from datetime import datetime
-from sqlalchemy import select
-from sqlalchemy.orm import joinedload
 from src.database import AsyncSession
-from src.models.models import Reports, ReportDelivery
-from contextlib import asynccontextmanager
+from src.repositories.reports_repository import ReportsRepository
 from src.config import settings
+import logging
 
-MAX_RETRIES = 10
+logger = logging.getLogger(__name__)
 
-@asynccontextmanager
-async def get_session():
-    async with AsyncSession() as session:
-        yield session
+MAX_RETRIES = 3
 
-async def process_report(message: aio_pika.IncomingMessage):
+async def process_report(
+        message: aio_pika.IncomingMessage,
+        channel: aio_pika.Channel
+):
     data = json.loads(message.body)
     report_id = int(data["report_id"])
 
-    async with get_session() as session:
-        result = await session.execute(
-            select(Reports, ReportDelivery)
-            .options(joinedload(Reports.organization))
-            .join(ReportDelivery, ReportDelivery.report_id == Reports.id)
-            .where(Reports.id == report_id)
-        )
-        row = result.first()
+    async with AsyncSession() as session:
+        repository = ReportsRepository(session)
+        row = await repository.get_report_with_report_delivery_or_none(report_id)
         if row is None:
             await message.ack()
             return
@@ -53,7 +46,7 @@ async def process_report(message: aio_pika.IncomingMessage):
                     headers={"Idempotency-Key": str(delivery.idempotency_key)},
                 )
                 response.raise_for_status()
-
+                logger.info("Отправка сообщения прошла успешно")
             delivery.status = "sent"
             delivery.sent_at = datetime.now()
             await session.commit()
@@ -65,7 +58,16 @@ async def process_report(message: aio_pika.IncomingMessage):
             if delivery.retry_count >= MAX_RETRIES:
                 delivery.status = "failed"
                 await session.commit()
-                await message.reject(requeue=False)  # в reports.send.dead
+
+                await channel.default_exchange.publish(
+                    aio_pika.Message(
+                        body=message.body,
+                        headers=message.headers,
+                        delivery_mode=message.delivery_mode,
+                    ),
+                    routing_key="reports.send.dead",
+                )
+                await message.ack()
             else:
                 await session.commit()
                 await message.reject(requeue=False)  # в reports.send.retry через DLX

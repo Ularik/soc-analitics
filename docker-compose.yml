@@ -1,26 +1,73 @@
 services:
-  api:
-    build: .
-    command: uvicorn src.main:app --host 0.0.0.0 --port 8000
-    ports: ["8000:8000"]
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     env_file:
       - .env
-    depends_on: [postgres, rabbitmq]
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis
+    restart: always
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes # 5. Включение постоянного сохранения на диск
+    healthcheck: # 6. Проверка здоровья контейнера
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build: .
+    command: sh -c "alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port 8000"
+    ports: ["8000:8000"]
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+    env_file:
+      - .env
 
   worker:
     build: .            # тот же Dockerfile, тот же образ
     command: python -m worker.main
+    restart: unless-stopped
     env_file:
       - .env
-    depends_on: [postgres, rabbitmq]
-
-  postgres:
-    image: postgres:18
-    environment:
-      POSTGRES_DB: reports_db
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: pass
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   rabbitmq:
     image: rabbitmq:3-management
-    ports: ["5672:5672", "15672:15672"]  # 15672 — веб-панель управления, полезно для отладки
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+    healthcheck:
+      test: [ "CMD-SHELL", "rabbitmq-diagnostics -q ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:

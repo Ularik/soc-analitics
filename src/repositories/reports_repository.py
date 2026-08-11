@@ -1,7 +1,8 @@
 from src.repositories.base import BaseRepository
 from src.models.models import Reports, Organization, ReportDelivery
 from src.schemas.reports_schemas import ReportOutSchema, ReportCreateSchema, ReportDeliverySchema
-from sqlalchemy import select, insert
+from sqlalchemy import select, insert, Row
+from sqlalchemy.orm import joinedload
 
 
 class ReportsRepository(BaseRepository):
@@ -32,3 +33,12 @@ class ReportsRepository(BaseRepository):
     async def get_reports(self) -> list[ReportOutSchema]:
         result = await self.session.execute(select(self.model))
         return [ReportOutSchema.model_validate(report) for report in result.scalars()]
+
+    async def get_report_with_report_delivery_or_none(self, report_id: int) -> Row[tuple[Reports, ReportDelivery]] | None:
+        result = await self.session.execute(
+            select(Reports, ReportDelivery)
+            .options(joinedload(Reports.organization))
+            .join(ReportDelivery, ReportDelivery.report_id == Reports.id)
+            .where(Reports.id == report_id)
+        )
+        return result.first()

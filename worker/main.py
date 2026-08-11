@@ -4,16 +4,25 @@ import aio_pika
 from worker.queues import setup_queues
 from worker.consumer import process_report
 import sys
+from src.config import settings
+from functools import partial
+import logging
+from .setup_logger import setup_logging
+
+
+logger = logging.getLogger(__name__)
 
 async def main():
-    connection = await aio_pika.connect_robust("amqp://guest:guest@localhost/")
+    setup_logging()
+
+    connection = await aio_pika.connect_robust(settings.RMQ_URL)
     channel = await connection.channel()
     await channel.set_qos(prefetch_count=5)
     await setup_queues(channel)
 
     queue = await channel.get_queue("reports.send")
-    consumer_tag = await queue.consume(process_report)
-    print("Worker started, waiting for messages...")
+    consumer_tag = await queue.consume(partial(process_report, channel=channel))
+    logger.info("Worker started, waiting for messages...")
 
     stop_event = asyncio.Event()
     def _handle_stop(*_args):
