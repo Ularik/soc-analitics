@@ -36,7 +36,7 @@ class ReportsService(BaseService):
         _data = ReportCreateSchema(
             **body.model_dump(),
             file_content=pdf_bytes,
-            file_name=f"{body.origin_name}-{datetime.now()}"
+            file_name=f"{body.origin_name}-{datetime.now():%Y%m%d_%H%M%S}.pdf"
         )
         report = await self.db.reports.create_report(_data)
         idempotency_key = uuid.uuid4()
