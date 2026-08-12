@@ -1,12 +1,15 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from src.logging_conf.logging_conf import setup_logging
-from src.routers.routers import router
+from src.routers.reports import router as reports_router
+from src.routers.users import router as users_router
 from fastapi.middleware.cors import CORSMiddleware
 from src.redis.init import redis_manager
 from src.rabbitmq.init import rabbit_client
+from src.exceptions.exception_handlers import register_exception_handlers
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
+
 
 
 @asynccontextmanager
@@ -23,6 +26,9 @@ app = FastAPI(
     title="API Обработчик запросов",
     lifespan=lifespan
 )
+
+register_exception_handlers(app)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
@@ -31,7 +37,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(router)
+app.include_router(reports_router)
+app.include_router(users_router)
 
 @app.get("/")
 async def root():

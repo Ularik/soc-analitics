@@ -1,5 +1,5 @@
 from src.repositories.base import BaseRepository
-from src.models.models import Organization
+from src.models.reports_organizations import Organization
 from src.schemas.organizations_schema import OrganizationSchema, OrganizationCreateSchema
 
 from sqlalchemy import select, insert

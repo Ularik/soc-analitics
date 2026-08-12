@@ -2,10 +2,10 @@ from fastapi import APIRouter, Body, Request
 from src.schemas.reports_schemas import ReportGenerateSchema
 from src.schemas.organizations_schema import OrganizationCreateSchema
 from src.service.reports_service import ReportsService
-from src.routers.dependencies import DBDep, RMQDep
+from src.routers.dependencies import DBDep, RMQDep, AuthUserDep
 
 
-router = APIRouter()
+router = APIRouter(prefix="/reports", tags=["Отчеты"])
 
 
 @router.get("/get-organizations/")
@@ -31,8 +31,9 @@ async def get_answer_for_log(request: Request, db: DBDep, rmq: RMQDep, body: str
 async def create_report(request: Request,
                         db: DBDep,
                         rmq: RMQDep,
+                        user_id: AuthUserDep,
                         body: ReportGenerateSchema):
-    result = await ReportsService(db, rabbit_mq=rmq).create_report(body)
+    result = await ReportsService(db, rabbit_mq=rmq).create_report(body, user_id)
     return result
 
 @router.get("/get-reports/")

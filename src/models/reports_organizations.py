@@ -8,9 +8,10 @@ from sqlalchemy import (
     ForeignKey,
     func
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, Relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import LargeBinary
 import uuid
+from src.models.users import UserOrm
 
 
 class Organization(Base):
@@ -40,10 +41,13 @@ class Reports(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    user_id: Mapped[int | None]
-    organization_id: Mapped[int | None] = mapped_column(
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey('users.id', ondelete='SET NULL'),
+        comment='Пользователь'
+    )
+    user: Mapped[UserOrm] = relationship()
+    organization_id: Mapped[int] = mapped_column(
         ForeignKey('organization.id', ondelete='SET NULL'),
-        nullable=True,
         comment="Организация"
     )
     organization: Mapped[Organization] = relationship()

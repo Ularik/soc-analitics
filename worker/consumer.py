@@ -7,6 +7,7 @@ from src.repositories.reports_repository import ReportsRepository
 from src.config import settings
 import logging
 
+
 logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
@@ -30,14 +31,14 @@ async def process_report(
             await message.ack()
             return
 
-        data = {
-            'body': json.dumps({
-                'organization': report.organization.name_en,
-                'name': report.attack_type
-            })
-        }
-
         try:
+            data = {
+                'body': json.dumps({
+                    'organization': report.organization.name_en,
+                    'name': report.attack_type
+                })
+            }
+
             async with httpx.AsyncClient(timeout=15) as client:
                 response = await client.post(
                     f"{settings.CERT_GOV}/api/router/report-create",
@@ -50,6 +51,19 @@ async def process_report(
             delivery.status = "sent"
             delivery.sent_at = datetime.now()
             await session.commit()
+            await message.ack()
+
+        except AttributeError:
+            delivery.status = "failed"
+            await session.commit()
+            await channel.default_exchange.publish(
+                aio_pika.Message(
+                    body=message.body,
+                    headers=message.headers,
+                    delivery_mode=message.delivery_mode,
+                ),
+                routing_key="reports.send.dead",
+            )
             await message.ack()
 
         except (httpx.TimeoutException, httpx.ConnectError, httpx.HTTPStatusError) as exc:
@@ -71,3 +85,4 @@ async def process_report(
             else:
                 await session.commit()
                 await message.reject(requeue=False)  # в reports.send.retry через DLX
+

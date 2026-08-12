@@ -7,3 +7,5 @@ fastapi-cache2[redis]
 asyncpg
 alembic
 aio-pika
+bcrypt
+pyjwt

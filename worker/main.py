@@ -7,7 +7,7 @@ import sys
 from src.config import settings
 from functools import partial
 import logging
-from .setup_logger import setup_logging
+from worker.setup_logger import setup_logging
 
 
 logger = logging.getLogger(__name__)

@@ -32,6 +32,7 @@ class ReportGenerateSchema(BaseModel):
         return v
 
 class ReportCreateSchema(ReportGenerateSchema):
+    user_id: int
     file_content: bytes | None = None
     file_name: str | None = None
 

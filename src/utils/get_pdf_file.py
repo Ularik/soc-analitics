@@ -3,20 +3,11 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
 from src.schemas.reports_schemas import ReportGenerateSchema
 
 
 def generate_report_pdf(report: ReportGenerateSchema) -> BytesIO:
     buffer = BytesIO()
-
-    # 1. Регистрация шрифта (с фолбэком для разных ОС)
-    try:
-        pdfmetrics.registerFont(TTFont('TimesNewRoman', r'/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf'))
-    except Exception:
-        pdfmetrics.registerFont(TTFont('TimesNewRoman', r'C:\Windows\Fonts\times.ttf'))
-
     # 2. Документ и стили
     doc = SimpleDocTemplate(
         buffer, pagesize=A4,
