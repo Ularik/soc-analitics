@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Response
-from src.schemas.users import UsersRequestSchema, UserAddSchema, UserLoginSchema
+from src.schemas.users_schemas import UsersRequestSchema, UserAddSchema, UserLoginSchema
 from src.repositories.users import UsersRepository
 from src.database import AsyncSession
 from src.service.auth import AuthService

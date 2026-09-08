@@ -1,6 +1,6 @@
 from src.repositories.base import BaseRepository
 from src.models.users import UserOrm
-from src.schemas.users import UserHashedPswdSchema, UserOutSchema
+from src.schemas.users_schemas import UserHashedPswdSchema, UserOutSchema
 from sqlalchemy import select
 
 

@@ -48,7 +48,10 @@ class ReportsRepository(BaseRepository):
     async def get_report_with_report_delivery_or_none(self, report_id: int) -> Row[tuple[Reports, ReportDelivery]] | None:
         result = await self.session.execute(
             select(Reports, ReportDelivery)
-            .options(joinedload(Reports.organization))
+            .options(
+                joinedload(Reports.organization),
+                joinedload(Reports.user)
+            )
             .join(ReportDelivery, ReportDelivery.report_id == Reports.id)
             .where(Reports.id == report_id)
         )

@@ -20,8 +20,7 @@ async def process_report(
     report_id = int(data["report_id"])
 
     async with AsyncSession() as session:
-        repository = ReportsRepository(session)
-        row = await repository.get_report_with_report_delivery_or_none(report_id)
+        row = await ReportsRepository(session).get_report_with_report_delivery_or_none(report_id)
         if row is None:
             await message.ack()
             return
@@ -34,6 +33,7 @@ async def process_report(
         try:
             data = {
                 'body': json.dumps({
+                    'username': report.user.username,
                     'organization': report.organization.name_en,
                     'name': report.attack_type
                 })
