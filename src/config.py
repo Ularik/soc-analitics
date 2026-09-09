@@ -37,6 +37,9 @@ class Settings(BaseSettings):
 
     CERT_GOV: str
 
+    TELEGRAM_BOT_TOKEN: str
+    TELEGRAM_CHAT_ID: str
+
     @property
     def DB_URL(self):
         host = [self.POSTGRES_HOST, self.POSTGRES_HOST_DOCKER][self.MODE == "DOCKER"]

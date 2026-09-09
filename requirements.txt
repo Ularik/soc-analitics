@@ -9,3 +9,4 @@ alembic
 aio-pika
 bcrypt
 pyjwt
+celery

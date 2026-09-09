@@ -2,7 +2,6 @@ from src.service.base import BaseService
 from src.utils.cache_key_builder import custom_log_key_builder
 from src.schemas.reports_schemas import ReportCreateSchema, ReportGenerateSchema, ReportDeliverySchema
 from src.redis.init import redis_manager
-from src.LLM.init import get_answer_from_gemini
 from src.LLM.qwen import get_answer_from_qwen
 import uuid
 from src.utils.get_pdf_file import generate_report_pdf
