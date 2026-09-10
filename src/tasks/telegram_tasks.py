@@ -2,6 +2,7 @@ import logging
 
 from celery import shared_task
 
+from src.schemas.detection_events_schemas import DetectionEventSchema
 from src.telegram.telegram_logger import telegram_logger
 
 
@@ -21,12 +22,14 @@ def send_telegram_attack_task(
 ):
     try:
         status = event_wrapper["status"]
-        event = event_wrapper["data"]
+        # Десериализуем данные обратно в Pydantic-модель
+        event = DetectionEventSchema.model_validate(event_wrapper["data"])
 
-        ip = event.get("s_ip")
-        rule_name = event.get("rulename", "").strip()
-        node = event.get("d_info")
-        attempts = event.get("cnt")
+        # Извлекаем IP через вызов .s_ip (который читает внутри line)
+        ip = event.s_ip
+        rule_name = event.rulename.strip()
+        node = event.d_info
+        attempts = event.cnt
 
         success = telegram_logger.send_attack(
             status=status,
@@ -37,9 +40,7 @@ def send_telegram_attack_task(
         )
 
         if not success:
-            raise RuntimeError(
-                "Telegram не подтвердил отправку сообщения"
-            )
+            raise RuntimeError("Telegram не подтвердил отправку сообщения")
 
         return {
             "status": "sent",
@@ -47,8 +48,5 @@ def send_telegram_attack_task(
         }
 
     except Exception as exc:
-        logger.exception(
-            "Ошибка отправки уведомления в Telegram"
-        )
-
+        logger.exception("Ошибка отправки уведомления в Telegram")
         raise self.retry(exc=exc)

@@ -3,6 +3,7 @@ import requests
 from src.config import settings
 from src.schemas.reports_schemas import ReportGenerateSchema
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,9 +27,7 @@ class TelegramLogger:
         """
 
         if not self.bot_token or not self.chat_id:
-            logger.error(
-                "TELEGRAM_BOT_TOKEN или TELEGRAM_CHAT_ID не настроены"
-            )
+            logger.error("TELEGRAM_BOT_TOKEN или TELEGRAM_CHAT_ID не настроены")
             return False
 
         try:
@@ -47,10 +46,19 @@ class TelegramLogger:
             logger.info("Сообщение успешно отправлено в Telegram")
             return True
 
-        except requests.RequestException:
-            logger.exception(
-                "Ошибка при отправке сообщения в Telegram"
+        except requests.exceptions.HTTPError as e:
+            # Извлекаем ответ от самого Telegram API
+            error_details = (
+                response.text if "response" in locals() else "Нет ответа от сервера"
             )
+            logger.error(
+                f"HTTP ошибка от Telegram API [{response.status_code}]: {error_details}"
+            )
+            return False
+
+        except requests.RequestException as e:
+            # Ошибки сети, таймауты, проблемы с DNS
+            logger.error(f"Сетевая ошибка при отправке в Telegram: {e}")
             return False
 
     def send_attack(self, *, status: str, ip: str, rule_name: str | None = None, node: str | None = None,
@@ -70,55 +78,56 @@ class TelegramLogger:
             "🤖 <b>АНАЛИЗ ИНЦИДЕНТА</b>\n\n"
 
             f"🏢 <b>Организация:</b> "
-            f"{str(report.get('origin_name', 'N/A'))}\n"
+            f"{str(report.origin_name)}\n"
 
             f"🌍 <b>Страна:</b> "
-            f"{str(report.get('country', 'N/A'))}\n"
+            f"{str(report.country)}\n"
 
             f"🚨 <b>Уровень риска:</b> "
-            f"{str(report.get('risk_assessment', 'N/A'))}\n\n"
+            f"{str(report.risk_assessment)}\n\n"
 
             f"🎯 <b>Тип атаки:</b> "
-            f"{str(report.get('attack_type', 'N/A'))}\n"
+            f"{str(report.attack_type)}\n"
 
             f"🛡 <b>Инструмент обнаружения:</b> "
-            f"{(str(report.get('detection_tool', 'N/A')))}\n"
+            f"{(str(report.detection_tool))}\n"
 
             f"📡 <b>Метод:</b> "
-            f"{(str(report.get('methods', 'N/A')))}\n"
+            f"{(str(report.methods))}\n"
 
             f"🌐 <b>Источник:</b> "
-            f"<code>{(str(report.get('source_ip', 'N/A')))}</code>\n"
+            f"<code>{(str(report.source_ip))}</code>\n"
 
             f"🎯 <b>Назначение:</b> "
-            f"<code>{(str(report.get('destination_ip', 'N/A')))}</code>\n"
+            f"<code>{(str(report.destination_ip))}</code>\n"
 
             f"🖥 <b>Host:</b> "
-            f"{(str(report.get('host') or 'N/A'))}\n"
+            f"{(str(report.host))}\n"
 
             f"🔌 <b>Протокол/порт:</b> "
-            f"{(str(report.get('protocols_ports', 'N/A')))}\n"
+            f"{(str(report.protocols_ports))}\n"
 
             f"📅 <b>Дата:</b> "
-            f"{(str(report.get('detection_date', 'N/A')))}\n"
+            f"{(str(report.detection_date))}\n"
 
             f"🔐 <b>CVE:</b> "
-            f"{(str(report.get('cve') or 'N/A'))}\n\n"
+            f"{(str(report.cve))}\n\n"
 
             "📋 <b>Описание атаки</b>\n"
-            f"{(str(report.get('short_description', 'N/A')))}\n\n"
+            f"{(str(report.short_description))}\n\n"
 
             "💥 <b>Потенциальное воздействие</b>\n"
-            f"{(str(report.get('potential_impact', 'N/A')))}\n\n"
+            f"{(str(report.potential_impact))}\n\n"
 
             "📦 <b>Payload</b>\n"
-            f"<code>{(str(report.get('data_or_payload', 'N/A')))}</code>\n\n"
+            f"<code>{(str(report.data_or_payload))}</code>\n\n"
 
             "🛡 <b>Рекомендации по реагированию</b>\n"
-            f"{(str(report.get('response_actions', 'N/A')))}"
+            f"{(str(report.response_actions))}"
         )
 
         return self.send(message)
 
 
 telegram_logger = TelegramLogger()
+

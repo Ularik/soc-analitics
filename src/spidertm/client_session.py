@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 import requests
 import urllib3
+from src.schemas.detection_events_schemas import DetectionNoticeResponse
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -47,7 +48,7 @@ class SiemSessionManager:
             "alarmType": "topN",
         }
 
-    def fetch_events(self) -> dict:
+    def fetch_events(self) -> DetectionNoticeResponse:
         """Получает события. Если сессии нет или она просрочена — переавторизуется."""
         if not self.session:
             self._init_session()
@@ -62,7 +63,7 @@ class SiemSessionManager:
                 res = self.session.post(self.EVENTS_URL, data=self.get_payload, timeout=10)
 
             res.raise_for_status()
-            return res.json()
+            return DetectionNoticeResponse.model_validate(res.json())
 
         except (requests.RequestException, requests.HTTPError) as e:
             logger.error(f"Ошибка при запросе к SIEM: {e}")

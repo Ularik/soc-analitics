@@ -28,7 +28,7 @@ class ReportsService(BaseService):
         result = await self.db.reports.get_reports()
         return result
 
-    async def create_report(self, body: ReportGenerateSchema, user_id: int) -> int:   # добавить rabbitmq
+    async def create_report(self, body: ReportGenerateSchema, user_id: int | None = None) -> int:   # добавить rabbitmq
         pdf_buffer = await asyncio.to_thread(generate_report_pdf, body)
         pdf_bytes = pdf_buffer.getvalue()
 
