@@ -2,6 +2,10 @@ FROM python:3.12.2-slim
 
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
 # Сначала ставим зависимости (используем кэш, пока requirements.txt не изменится)
 COPY . .
 RUN pip install --no-cache-dir --upgrade pip && \

@@ -7,6 +7,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
     env_file:
       - .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7.2-alpine
@@ -16,31 +21,47 @@ services:
       - "6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes # 5. Включение постоянного сохранения на диск
-    healthcheck: # 6. Проверка здоровья контейнера
+    command: redis-server --appendonly yes
+    healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
       timeout: 3s
       retries: 5
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: [ "CMD-SHELL", "rabbitmq-diagnostics -q ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   api:
     build: .
+    container_name: api
     command: sh -c "alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port 8000"
     ports: ["8000:8000"]
     restart: always
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       redis:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-
     env_file:
       - .env
 
   worker:
-    build: .            # тот же Dockerfile, тот же образ
+    build: .
+    container_name: custom_worker
     command: python -m worker.main
     restart: unless-stopped
     env_file:
@@ -51,21 +72,33 @@ services:
       rabbitmq:
         condition: service_healthy
 
-  rabbitmq:
-    image: rabbitmq:3-management
+  celery_worker:
+    build: .
+    container_name: celery_worker
+    command: python -m celery -A src.tasks.celery_app:celery_instance worker -l info
     restart: unless-stopped
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
-    healthcheck:
-      test: [ "CMD-SHELL", "rabbitmq-diagnostics -q ping" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
+  celery_beat:
+    build: .
+    container_name: celery_beat
+    command: python -m celery -A src.tasks.celery_app:celery_instance beat -l info
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      celery_worker:
+        condition: service_started
 
 volumes:
   postgres_data:

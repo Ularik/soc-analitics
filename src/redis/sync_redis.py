@@ -1,19 +1,15 @@
 import logging
 import redis
+from src.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class RedisManager:
-    def __init__(self, host: str = "localhost", port: int = 6379, db: int = 0):
-        self.host = host
-        self.port = port
-        self.db = db
-        # Создаем пул соединений — он поток-безопасный и не пересоздает сокеты понапрасну
-        self.pool = redis.ConnectionPool(
-            host=self.host,
-            port=self.port,
-            db=self.db,
+    def __init__(self, url: str):
+        # Создаем пул соединений прямо из URL вида "redis://localhost:6379/0"
+        self.pool = redis.ConnectionPool.from_url(
+            url,
             decode_responses=True
         )
 
@@ -22,12 +18,11 @@ class RedisManager:
         return redis.Redis(connection_pool=self.pool)
 
     def hget(self, name: str, key: str) -> str | None:
-        r = self.client
-        return r.hget(name, key)
+        return self.client.hget(name, key)
 
     def hset(self, name: str, key: str, val: str):
-        r = self.client
-        r.hset(name, key, val)
+        self.client.hset(name, key, val)
 
 
-redis_manager = RedisManager()
+# Передаем полностью сформированный URL (например, "redis://redis:6379/0")
+redis_manager = RedisManager(url=settings.REDIS_URL)
