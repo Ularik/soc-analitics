@@ -2,7 +2,7 @@ import re
 import logging
 from google import genai
 from google.genai import types
-from google.genai.errors import ServerError
+from google.genai.errors import APIError, ServerError
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -40,8 +40,13 @@ def sanitize_log(text: str) -> str:
 
 
 def _is_retryable_error(exc: BaseException) -> bool:
-    # Ретраим только временные сбои Gemini: перегрузка (503) и rate limit (429)
-    return isinstance(exc, ServerError) and exc.status_code in (503, 429)
+    # 1. Проверяем ошибки API от Google (APIError — базовый класс для ошибок SDK)
+    if isinstance(exc, APIError):
+        # Используем .code вместо .status_code
+        code = getattr(exc, "code", None)
+        return code in (503, 429, 500, 502, 504)
+
+    return False
 
 
 @retry(
