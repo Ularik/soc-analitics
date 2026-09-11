@@ -10,3 +10,4 @@ aio-pika
 bcrypt
 pyjwt
 celery
+tenacity
