@@ -6,7 +6,7 @@ from pprint import pprint
 from celery import shared_task
 
 from src.db_manager.db_manager import DbManager
-from src.rabbitmq.init import rabbit_client
+from src.rabbitmq.rabbit_for_celery import rbmq_celery
 from src.schemas.reports_schemas import ReportGenerateSchema
 from src.service.reports_service import ReportsService
 from src.database import AsyncSessionNullPool
@@ -28,11 +28,10 @@ async def _process_analysis_and_report_async(prompt: str) -> ReportGenerateSchem
     # 2. Инициализируем БД и RabbitMQ клиент для создания и отправки отчета
     async with DbManager(session_factory=AsyncSessionNullPool) as db:
         # Важно: создаем/получаем асинхронный канал RabbitMQ в текущем loop
-        await rabbit_client.connect()
-        async with rabbit_client as channel:
+        async with rbmq_celery as channel:
             service = ReportsService(db=db, rabbit_mq=channel)
             await service.create_report(body=report_schema)
-        await rabbit_client.connection.close()
+        await rbmq_celery.connection.close()
 
     return report_schema
 

@@ -14,12 +14,11 @@ class ReportsRepository(BaseRepository):
     async def create_report(self, data: ReportCreateSchema) -> ReportCreateSchema:
         org_subquery = (
             select(Organization.id)
-            .where(Organization.name_en == data.origin_name)
+            .where(Organization.name_en.ilike(f"%{data.origin_name}%"))
             .scalar_subquery()
         )
 
         report_data = data.model_dump(exclude={'origin_name'})
-        print(report_data)
 
         try:
             stmt = (

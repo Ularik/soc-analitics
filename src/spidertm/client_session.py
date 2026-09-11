@@ -1,5 +1,7 @@
 import logging
 from datetime import datetime
+from pprint import pprint
+
 import requests
 import urllib3
 from src.schemas.detection_events_schemas import DetectionNoticeResponse

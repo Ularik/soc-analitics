@@ -20,7 +20,7 @@ class ReportsService(BaseService):
         if cached_body is not None:
             return ReportGenerateSchema.model_validate_json(cached_body)
 
-        answer = await get_answer_from_gemini(body)
+        answer = await get_answer_from_qwen(body)
 
         await redis_manager.set(key, answer.model_dump_json(), expire=60)
         return answer
