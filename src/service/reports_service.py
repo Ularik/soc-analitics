@@ -3,6 +3,7 @@ from src.utils.cache_key_builder import custom_log_key_builder
 from src.schemas.reports_schemas import ReportCreateSchema, ReportGenerateSchema, ReportDeliverySchema
 from src.redis.init import redis_manager
 from src.LLM.qwen import get_answer_from_qwen
+from src.LLM.init import get_answer_from_gemini
 import uuid
 from src.utils.get_pdf_file import generate_report_pdf
 import asyncio
@@ -19,7 +20,7 @@ class ReportsService(BaseService):
         if cached_body is not None:
             return ReportGenerateSchema.model_validate_json(cached_body)
 
-        answer = await get_answer_from_qwen(body)
+        answer = await get_answer_from_gemini(body)
 
         await redis_manager.set(key, answer.model_dump_json(), expire=60)
         return answer

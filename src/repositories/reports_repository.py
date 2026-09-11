@@ -19,7 +19,7 @@ class ReportsRepository(BaseRepository):
         )
 
         report_data = data.model_dump(exclude={'origin_name'})
-
+        print(report_data)
 
         try:
             stmt = (
