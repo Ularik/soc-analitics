@@ -63,6 +63,7 @@ class ReportDeliverySchema(BaseModel):
 
 
 class ReportOutSchema(ReportGenerateSchema):
+    id: int
     origin_name: None = None
     organization_id: int
     file_name: str

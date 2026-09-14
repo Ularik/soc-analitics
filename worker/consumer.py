@@ -31,12 +31,17 @@ async def process_report(
             return
 
         try:
+            body = {
+                'username': 'daniyar',
+                'organization': report.organization.name_en,
+                'name': report.attack_type
+            }
+
+            if report.user is not None:
+                body['username'] = report.user.username
+
             data = {
-                'body': json.dumps({
-                    'username': report.user.username,
-                    'organization': report.organization.name_en,
-                    'name': report.attack_type
-                })
+                'body': json.dumps(body)
             }
 
             async with httpx.AsyncClient(timeout=15) as client:
@@ -53,9 +58,12 @@ async def process_report(
             await session.commit()
             await message.ack()
 
-        except AttributeError:
+        except AttributeError as exc:
+            logger.exception("Ошибка обработки report_id=%s: %s", report_id, exc)
             delivery.status = "failed"
+            delivery.last_error = str(exc)  # сейчас это поле тут вообще не заполняется
             await session.commit()
+
             await channel.default_exchange.publish(
                 aio_pika.Message(
                     body=message.body,
@@ -67,6 +75,7 @@ async def process_report(
             await message.ack()
 
         except (httpx.TimeoutException, httpx.ConnectError, httpx.HTTPStatusError) as exc:
+            logger.exception("Ошибка обработки report_id=%s: %s", report_id, exc)
             delivery.retry_count += 1
             delivery.last_error = str(exc)
             if delivery.retry_count >= MAX_RETRIES:

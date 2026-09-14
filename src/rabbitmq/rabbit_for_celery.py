@@ -1,5 +1,11 @@
 import aio_pika
+from aio_pika.message import ReturnedMessage
+
 from src.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class RabbitCeleryClient:
     def __init__(self, amqp_url: str):
@@ -10,7 +16,14 @@ class RabbitCeleryClient:
     async def __aenter__(self):
         # Всегда открываем чистое соединение для текущего Event Loop
         self.connection = await aio_pika.connect_robust(self.amqp_url)
-        self._channel = await self.connection.channel()
+
+        logger.info(
+            "Rabbit connected: %s",
+            self.connection
+        )
+
+        self._channel = await self.connection.channel(on_return_raises=True)
+
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -29,7 +42,8 @@ class RabbitCeleryClient:
                 body=message.encode(),
                 message_id=message_id
             ),
-            routing_key=routing_key
+            routing_key=routing_key,
+            mandatory=True,
         )
 
 rbmq_celery = RabbitCeleryClient(settings.RMQ_URL)

@@ -9,6 +9,10 @@ from src.utils.get_pdf_file import generate_report_pdf
 import asyncio
 from datetime import datetime
 import json
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class ReportsService(BaseService):
@@ -52,8 +56,20 @@ class ReportsService(BaseService):
         message_body = {
             "report_id": str(report_id),
         }
+
+        logger.info(
+            "RABBIT: publishing report_id=%s routing_key=%s",
+            report_id,
+            "reports.send",
+        )
+
         await self.rmq_channel.publish(
             message=json.dumps(message_body),
             message_id=str(report_id),
             routing_key="reports.send",
+        )
+
+        logger.info(
+            "RABBIT: publish completed report_id=%s",
+            report_id,
         )

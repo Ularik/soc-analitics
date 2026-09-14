@@ -11,7 +11,7 @@ class ReportsRepository(BaseRepository):
     model = Reports
     schema = ReportOutSchema
 
-    async def create_report(self, data: ReportCreateSchema) -> ReportCreateSchema:
+    async def create_report(self, data: ReportCreateSchema) -> ReportOutSchema:
         # 1. Очищаем origin_name от расширений и спецсимволов
         clean_name = re.sub(r'[\(\)_-]', ' ', data.origin_name).strip()
 
@@ -35,12 +35,12 @@ class ReportsRepository(BaseRepository):
 
         try:
             stmt = (
-                insert(Reports)
+                insert(self.model)
                 .values(**report_data, organization_id=org_id)
-                .returning(Reports)  # Возвращает созданный ORM-объект
+                .returning(self.model)  # Возвращает созданный ORM-объект
             )
             result = await self.session.execute(stmt)
-            return self.schema.model.validate(result.scalar_one())
+            return ReportOutSchema.model_validate(result.scalar_one())
         except IntegrityError as e:
             # cause = getattr(e.orig, "__cause__", e.orig)
             raise e
