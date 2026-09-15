@@ -91,8 +91,8 @@ class NoticeListSchema(BaseModel):
 
 
 class ResponseDataSchema(BaseModel):
-    seeNotice: str
-    noticeList: NoticeListSchema
+    seeNotice: str | None = None
+    noticeList: NoticeListSchema | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
