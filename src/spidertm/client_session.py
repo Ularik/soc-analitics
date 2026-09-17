@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import ValidationError
 import requests
 import urllib3
+from src.config import settings
 from src.schemas.detection_events_schemas import DetectionNoticeResponse
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -11,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 
 class SiemSessionManager:
-    BASE_URL = "https://192.168.30.101:10443"
-    USERNAME = "igloosec"
-    PASSWORD = "Sp!dertm70"
+    BASE_URL = settings.SIEM_URL
+    USERNAME = settings.SIEM_LOGIN
+    PASSWORD = settings.SIEM_PASSWORD
 
     LOGIN_URL = f"{BASE_URL}/siem/j_spring_security_check"
     EVENTS_URL = f"{BASE_URL}/siem/common/get_footer_value.do"

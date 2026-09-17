@@ -16,7 +16,7 @@ celery_instance.conf.include = [
 celery_instance.conf.beat_schedule = {
     "set-expired-tasks-every-5-minutes": {
         "task": "src.tasks.beat_tasks.process_siem_events_task",  # Имя, указанное в @shared_task(name=...)
-        "schedule": crontab(minute="*/3")
+        "schedule": 45.0,
     },
 }
 

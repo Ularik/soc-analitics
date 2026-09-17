@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     RMQ_HOST_DOCKER: str
     RMQ_PORT: int
 
+    SIEM_URL: str
+    SIEM_LOGIN: str
+    SIEM_PASSWORD: str
+
     CERT_GOV: str
 
     TELEGRAM_BOT_TOKEN: str

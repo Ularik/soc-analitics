@@ -64,9 +64,8 @@ async def _process_analysis_and_report_async(prompt: str) -> ReportGenerateSchem
     в рамках единого event loop Celery-задачи.
     """
     # 1. Получаем анализ от LLM (асинхронно)
-    # report_schema = await get_answer_from_gemini(prompt)
+    report_schema = await get_answer_from_gemini(prompt)
 
-    report_schema = ReportGenerateSchema(**event_data)
     # 2. Инициализируем БД и RabbitMQ клиент для создания и отправки отчета
     async with DbManager(session_factory=AsyncSessionNullPool) as db:
         # Важно: создаем/получаем асинхронный канал RabbitMQ в текущем loop
