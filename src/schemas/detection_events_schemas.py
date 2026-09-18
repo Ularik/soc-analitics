@@ -1,5 +1,5 @@
 import json
-from typing import List, Optional
+from typing import List, Optional, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -83,6 +83,11 @@ class DetectionEventSchema(BaseModel):
     def s_ip(self) -> Optional[str]:
         """Удобный свойство-геттер для получения s_ip напрямую из line."""
         return self.parse_line().get("s_ip")
+
+
+class FilteredDetectionEventSchema(BaseModel):
+    status: Literal[""]
+
 
 class NoticeListSchema(BaseModel):
     result: List[DetectionEventSchema]

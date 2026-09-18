@@ -1,3 +1,5 @@
+import json
+
 from src.schemas.detection_events_schemas import DetectionNoticeResponse
 from src.redis.sync_redis import redis_incident_manager
 import ipaddress
@@ -9,36 +11,52 @@ logger = logging.getLogger(__name__)
 REDIS_INCIDENTS_KEY = "siem:processed_incidents"
 
 
-def is_request_new(detection_schema: DetectionNoticeResponse) -> list[dict]:
-    """
-    Сверяет трафик со старыми запросами за последние дни и удаляет повторяющиеся.
-    """
+def is_request_new(
+    detection_schema: DetectionNoticeResponse
+) -> list[dict]:
+
     notices = detection_schema.data.noticeList.result
+
     new_events = []
 
     for notice in notices:
-        inc_hash = notice.incident_hash or notice.samefield_hash
-        etime = str(notice.etime) if notice.etime else ""
+
+        event_log = notice.parse_line()
+
+        inc_hash = (
+            notice.incident_hash
+            or notice.samefield_hash
+        )
 
         if not inc_hash:
             continue
 
-        # Проверяем наличие хеша за сегодня/вчера
-        cached_etime = redis_incident_manager.get_incident_etime(
+        if not event_log.get("event_time"):
+            continue
+
+        cached_event = redis_incident_manager.get_incident_etime(
             base_name=REDIS_INCIDENTS_KEY,
-            inc_hash=inc_hash
+            inc_hash=inc_hash,
         )
 
-        if cached_etime is not None:
-            if cached_etime == etime:
-                logger.info("Это событие уже просматривали")
-                continue
-            else:
-                redis_incident_manager.save_incident(REDIS_INCIDENTS_KEY, inc_hash, etime)
-                new_events.append({"status": "UPDATED", "data": notice})
-        else:
-            redis_incident_manager.save_incident(REDIS_INCIDENTS_KEY, inc_hash, etime)
-            new_events.append({"status": "NEW", "data": notice})
+        if cached_event is not None:
+            logger.info(
+                f"Событие уже обработано: {inc_hash}"
+            )
+            continue
+
+        # Сохраняем конкретное событие
+        redis_incident_manager.save_incident(
+            base_name=REDIS_INCIDENTS_KEY,
+            inc_hash=inc_hash,
+            etime=event_log["event_time"],
+        )
+
+        new_events.append({
+            "status": "NEW",
+            "data": notice,
+            "event_hash": inc_hash,
+        })
 
     return new_events
 
@@ -62,3 +80,46 @@ def is_request_danger(event_log: dict) -> bool:
     except ValueError:
         logger.error(f"Некорректный формат IP-адреса: {src_ip_str}")
         return False
+
+
+def build_attack_prompt(group: dict) -> str:
+
+    return f"""
+Проанализируй агрегированное событие информационной безопасности.
+
+Источник:
+{group["source_ip"]}
+
+Правило обнаружения:
+{group["attack"]}
+
+Средство обнаружения:
+{group["origin_name"]}
+
+Первое событие:
+{group["first_event_time"]}
+
+Последнее событие:
+{group["last_event_time"]}
+
+Количество событий:
+{group["count"]}
+
+Уникальные IP назначения:
+{group["destination_ips"]}
+
+Порты назначения:
+{group["destination_ports"]}
+
+Порты источника:
+{group["source_ports"]}
+
+Отдельные события:
+{group["events"]}
+
+Не анализируй бинарные данные, Base64,
+pcap и длинные payload.
+Используй только значимые признаки атаки.
+
+Сделай итоговый SOC-анализ.
+"""
