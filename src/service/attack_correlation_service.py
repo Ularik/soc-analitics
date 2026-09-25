@@ -1,10 +1,11 @@
 import logging
 
-from src.redis.sync_redis import redis_incident_manager
+from src.redis.init import redis_manager
 
 logger = logging.getLogger(__name__)
 
-CORRELATION_TTL = 30
+CORRELATION_WINDOW = 20 * 60
+CORRELATION_TTL = CORRELATION_WINDOW + 10 * 60
 
 
 def build_correlation_hash(
@@ -13,7 +14,7 @@ def build_correlation_hash(
     origin_name: str | None,
 ) -> str:
 
-    return redis_incident_manager.make_correlation_hash(
+    return redis_manager.make_correlation_hash(
         source_ip=source_ip,
         attack=attack_name,
         origin_name=origin_name,
@@ -27,12 +28,9 @@ def add_event_to_correlation_group(
     attack_name: str,
     origin_name: str | None,
     event_hash: str,
-    status: str,
 ) -> tuple[dict, bool]:
 
-    group = redis_incident_manager.get_correlation_group(
-        correlation_hash
-    )
+    group = redis_manager.get_correlation_group(correlation_hash)
 
     event_time = event_log.get("event_time")
 
@@ -42,7 +40,6 @@ def add_event_to_correlation_group(
         "destination_ip": event_log.get("d_ip"),
         "destination_port": event_log.get("d_port"),
         "source_port": event_log.get("s_port"),
-        "status": status,
     }
 
     # ==========================================================
@@ -87,7 +84,7 @@ def add_event_to_correlation_group(
 
         group["events"].append(event_data)
 
-        created = redis_incident_manager.create_correlation_group(
+        created = redis_manager.create_correlation_group(
             correlation_hash,
             group,
             ttl=CORRELATION_TTL,
@@ -120,7 +117,7 @@ def add_event_to_correlation_group(
 
     group["events"].append(event_data)
 
-    redis_incident_manager.save_correlation_group(
+    redis_manager.save_correlation_group(
         correlation_hash,
         group,
         ttl=CORRELATION_TTL,

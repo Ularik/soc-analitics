@@ -86,8 +86,8 @@ class DetectionEventSchema(BaseModel):
 
 
 class FilteredDetectionEventSchema(BaseModel):
-    status: Literal[""]
-
+    data: DetectionEventSchema
+    event_hash: str
 
 class NoticeListSchema(BaseModel):
     result: List[DetectionEventSchema]

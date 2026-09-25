@@ -1,5 +1,6 @@
-import aio_pika
+import pika
 from src.config import settings
+
 
 class RabbitClient:
     def __init__(self, amqp_url: str):
@@ -7,30 +8,35 @@ class RabbitClient:
         self.connection = None
         self._channel = None
 
-    async def connect(self):
+    def connect(self):
         if not self.connection or self.connection.is_closed:
-            self.connection = await aio_pika.connect_robust(self.amqp_url)
+            parameters = pika.URLParameters(self.amqp_url)
+            self.connection = pika.BlockingConnection(parameters)
 
-    async def __aenter__(self):
-        self._channel = await self.connection.channel()
+    def __enter__(self):
+        if not self.connection or self.connection.is_closed:
+            self.connect()
+        self._channel = self.connection.channel()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self._channel and not self._channel.is_closed:
-            await self._channel.close()
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._channel and self._channel.is_open:
+            self._channel.close()
 
-    async def publish(self, routing_key: str, message_id: str, message: str):
-        await self._channel.default_exchange.publish(
-            aio_pika.Message(
-                body=message.encode(),
-                message_id=message_id
-            ),
-            routing_key = routing_key
-        ),
+    def publish(self, routing_key: str, message_id: str, message: str):
+        properties = pika.BasicProperties(message_id=message_id)
 
-    async def close(self):
-        if self.connection and not self.connection.is_closed:
-            await self.connection.close()
+        # default exchange в pika обозначается пустой строкой ''
+        self._channel.basic_publish(
+            exchange='',
+            routing_key=routing_key,
+            body=message.encode('utf-8'),
+            properties=properties
+        )
+
+    def close(self):
+        if self.connection and self.connection.is_open:
+            self.connection.close()
 
 
 rabbit_client = RabbitClient(settings.RMQ_URL)

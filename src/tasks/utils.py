@@ -1,19 +1,20 @@
 import json
 
-from src.schemas.detection_events_schemas import DetectionNoticeResponse
-from src.redis.sync_redis import redis_incident_manager
+from src.schemas.detection_events_schemas import DetectionNoticeResponse, FilteredDetectionEventSchema, \
+    DetectionEventSchema
+from src.redis.init import redis_manager
 import ipaddress
-from datetime import date
 import logging
 
 logger = logging.getLogger(__name__)
+
 
 REDIS_INCIDENTS_KEY = "siem:processed_incidents"
 
 
 def is_request_new(
     detection_schema: DetectionNoticeResponse
-) -> list[dict]:
+) -> list[FilteredDetectionEventSchema]:
 
     notices = detection_schema.data.noticeList.result
 
@@ -34,7 +35,7 @@ def is_request_new(
         if not event_log.get("event_time"):
             continue
 
-        cached_event = redis_incident_manager.get_incident_etime(
+        cached_event = redis_manager.get_incident_etime(
             base_name=REDIS_INCIDENTS_KEY,
             inc_hash=inc_hash,
         )
@@ -45,24 +46,19 @@ def is_request_new(
             )
             continue
 
-        # Сохраняем конкретное событие
-        redis_incident_manager.save_incident(
-            base_name=REDIS_INCIDENTS_KEY,
-            inc_hash=inc_hash,
-            etime=event_log["event_time"],
+        new_events.append(
+            FilteredDetectionEventSchema(
+                data=notice,
+                event_hash=inc_hash,
+            )
         )
-
-        new_events.append({
-            "status": "NEW",
-            "data": notice,
-            "event_hash": inc_hash,
-        })
 
     return new_events
 
 
-def is_request_danger(event_log: dict) -> bool:
-    src_ip_str = event_log.get("s_ip")
+def is_remote_ip(event: DetectionEventSchema) -> bool:
+    event_log = event.parse_line()
+    src_ip_str = event_log.get('s_ip')
 
     if not src_ip_str:
         logger.warning("Системный трафик")
