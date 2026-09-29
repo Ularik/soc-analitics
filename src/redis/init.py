@@ -6,3 +6,4 @@ redis_manager = RedisIncidentManager(
     host=redis_host,
     port=settings.REDIS_PORT,
 )
+redis_manager.connect()

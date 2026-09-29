@@ -1,5 +1,3 @@
-import json
-
 from src.schemas.detection_events_schemas import DetectionNoticeResponse, FilteredDetectionEventSchema, \
     DetectionEventSchema
 from src.redis.init import redis_manager
@@ -77,45 +75,3 @@ def is_remote_ip(event: DetectionEventSchema) -> bool:
         logger.error(f"Некорректный формат IP-адреса: {src_ip_str}")
         return False
 
-
-def build_attack_prompt(group: dict) -> str:
-
-    return f"""
-Проанализируй агрегированное событие информационной безопасности.
-
-Источник:
-{group["source_ip"]}
-
-Правило обнаружения:
-{group["attack"]}
-
-Средство обнаружения:
-{group["origin_name"]}
-
-Первое событие:
-{group["first_event_time"]}
-
-Последнее событие:
-{group["last_event_time"]}
-
-Количество событий:
-{group["count"]}
-
-Уникальные IP назначения:
-{group["destination_ips"]}
-
-Порты назначения:
-{group["destination_ports"]}
-
-Порты источника:
-{group["source_ports"]}
-
-Отдельные события:
-{group["events"]}
-
-Не анализируй бинарные данные, Base64,
-pcap и длинные payload.
-Используй только значимые признаки атаки.
-
-Сделай итоговый SOC-анализ.
-"""

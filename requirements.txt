@@ -12,3 +12,4 @@ pyjwt
 celery
 tenacity
 pika
+psycopg2

@@ -7,7 +7,7 @@ from src.tasks.utils import is_request_new, is_remote_ip
 from src.spidertm.client_session import siem_client
 from src.schemas.detection_events_schemas import DetectionNoticeResponse, DetectionEventSchema, \
     FilteredDetectionEventSchema
-from src.tasks.attack_tasks import finalize_attack_group, analyze_attack_group
+from src.tasks.attack_tasks import analyze_attack_group
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +36,10 @@ def group_events(event_wrapper: FilteredDetectionEventSchema):
 
     correlation_hash = build_correlation_hash(
         source_ip=src_ip_str,
-        attack_name=attack_name,
         origin_name=origin_name,
     )
 
-    group, is_new_group = (
+    is_analyze = (
         add_event_to_correlation_group(
             correlation_hash=correlation_hash,
             event_log=event_log,
@@ -50,24 +49,11 @@ def group_events(event_wrapper: FilteredDetectionEventSchema):
         )
     )
 
-    logger.info(
-        f"Корреляционная группа: "
-        f"{correlation_hash} | "
-        f"events={group['count']}"
-    )
+    if not is_analyze:
+        return
 
-    # ======================================================
-    # FIRST EVENT
-    # ======================================================
+    analyze_attack_group.delay(correlation_hash, delete_group=False)
 
-    if is_new_group:
-        analyze_attack_group.delay(correlation_hash, delete_group=False)
-
-    # планируем на каждое событие, не только на новую группу
-    finalize_attack_group.apply_async(
-        args=[correlation_hash],
-        countdown=CORRELATION_WINDOW,
-    )
 
 
 @shared_task(name="src.tasks.beat_tasks.process_siem_events_task")

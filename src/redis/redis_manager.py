@@ -77,12 +77,10 @@ class RedisIncidentManager:
     def make_correlation_hash(
             self,
             source_ip: str | None,
-            attack: str,
             origin_name: str | None,
     ) -> str:
         raw = "|".join([
             source_ip or "",
-            attack or "",
             origin_name or "",
         ])
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()

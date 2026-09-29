@@ -1,7 +1,52 @@
 import json
-from typing import List, Optional, Literal
-from pydantic import BaseModel, ConfigDict, Field
+from typing import List, Optional
+from pydantic import BaseModel, Field, ConfigDict
+import logging
 
+logger = logging.getLogger(__name__)
+
+
+# ==========================================================
+# PYDANTIC СХЕМЫ
+# ==========================================================
+
+class EventItem(BaseModel):
+    """Событие внутри корреляционной группы."""
+    event_hash: str
+    event_time: int | None = None
+    attack_name: str
+
+    # Сетевые параметры
+    destination_ip: str | None = None
+    destination_port: int | None = None
+    source_port: int | None = None
+    destination_country: str | None = None
+
+    # Действие и категория
+    action: str | None = Field(default=None, description="ALLOW, DROP, BLOCK и т.д.")
+    priority: str | None = None
+    category: str | None = None
+
+    # Контекст атаки
+    payload_sample: str | None = Field(default=None, description="Очищенный/обрезанный payload")
+
+
+class CorrelationGroup(BaseModel):
+    """Группа корреляции для передачи в LLM."""
+    correlation_hash: str
+
+    # Атрибуты источника (Атакующего)
+    source_ip: str | None = None
+    source_country: str | None = None
+    origin_name: str | None = None
+
+    # Временные рамки и счетчики
+    first_event_time: int | None = None
+    last_event_time: int | None = None
+    count: int = 0
+
+    # Список событий
+    events: list[EventItem] = Field(default_factory=[])
 
 class SubDataSchema(BaseModel):
     rule_id: int

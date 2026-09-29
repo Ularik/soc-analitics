@@ -1,51 +1,19 @@
-import asyncio
 import logging
-import time
 from celery import shared_task
 
+from src.rabbitmq.init import rabbit_client
+from src.service.reports_service import ReportsService
+from src.database import Session
+from src.db_manager.db_manager import DbManager
 from src.redis.init import redis_manager
-from src.tasks.llm_tasks import _process_analysis_and_report_async
+from src.schemas.reports_schemas import ReportGenerateSchema
+from src.LLM.init import get_answer_from_gemini
 from src.telegram.telegram_logger import telegram_logger
-from src.tasks.utils import build_attack_prompt
 
 
 logger = logging.getLogger(__name__)
 
 CORRELATION_WINDOW = 20 * 60
-
-@shared_task(
-    name="src.tasks.attack_tasks.finalize_attack_group"
-)
-def finalize_attack_group(
-    correlation_hash: str
-):
-
-    group = redis_manager.get_correlation_group(
-        correlation_hash
-    )
-
-    if group is None:
-        logger.info(
-            f"Группа уже обработана: "
-            f"{correlation_hash}"
-        )
-        return
-    elapsed = time.time() - group["last_seen_at"]
-
-    if elapsed < CORRELATION_WINDOW:
-        # пока эта задача ждала countdown, пришли новые события —
-        # атака ещё не затихла. Реальную работу сделает более поздний
-        # вызов finalize, который был запланирован при том новом событии
-        return
-
-    logger.info(
-        f"Группа готова к анализу {correlation_hash}: "
-        f"{group['count']} событий"
-    )
-    analyze_attack_group.delay(
-        correlation_hash,
-        delete_group=True,
-    )
 
 
 @shared_task(
@@ -62,27 +30,32 @@ def analyze_attack_group(
     group = redis_manager.get_correlation_group(correlation_hash)
 
     if group is None:
-        logger.info(f"Группа уже удалена: {correlation_hash}")
-        return
+        logger.info(f"Группа уже удалена или не существует: {correlation_hash}")
+        return {
+            "status": "not_found",
+            "correlation_hash": correlation_hash,
+        }
 
     try:
         logger.info(
             f"Запускаем LLM-анализ группы {correlation_hash}: "
-            f"{group['count']} событий"
+            f"{group.get('count', 0)} событий"
         )
 
-        report = asyncio.run(
-            _process_analysis_and_report_async(
-                prompt=build_attack_prompt(group),
-            )
-        )
+        # Вызываем синхронную функцию напрямую без asyncio.run()
+        report: ReportGenerateSchema = get_answer_from_gemini(group)
 
+        # Отправка отчета (передаем Pydantic модель или dict в зависимоcти от telegram_logger)
         if not telegram_logger.send_analysis(report=report):
             raise RuntimeError("Telegram не подтвердил отправку анализа")
 
+        with DbManager(session_factory=Session) as db:
+            with rabbit_client as channel:
+                ReportsService(db, rabbit_mq=channel).create_report(body=report)
+
         if delete_group:
             redis_manager.delete_correlation_group(correlation_hash)
-            logger.info(f"Группа обработана и удалена: {correlation_hash}")
+            logger.info(f"Группа успешно обработана и удалена: {correlation_hash}")
 
         return {
             "status": "analyzed_and_sent",
