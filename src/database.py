@@ -1,20 +1,18 @@
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy import NullPool, create_engine
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
+
 from src.config import settings
-from sqlalchemy import NullPool
 
+# Обычный (синхронный) URL, например: postgresql://user:pass@localhost/dbname
+DB_URL = settings.DB_URL_SYNC
 
-DB_URL = settings.DB_URL
-engine = create_async_engine(settings.DB_URL, echo=False)  # по умолчанию держит 15 соединений
-engine_null_pool = create_async_engine(
-    DB_URL, poolclass=NullPool
-)  # не содержит соединений, открыл - сразу закрыл
+# Синхронные движки
+engine = create_engine(DB_URL, echo=False)
+engine_null_pool = create_engine(DB_URL, poolclass=NullPool)
 
-AsyncSession = async_sessionmaker(
-    engine, expire_on_commit=False
-)
-AsyncSessionNullPool = async_sessionmaker(engine_null_pool, expire_on_commit=False)
-
+# Синхронные фабрики сессий
+Session = sessionmaker(engine, expire_on_commit=False)
+SessionNullPool = sessionmaker(engine_null_pool, expire_on_commit=False)
 
 
 class Base(DeclarativeBase):

@@ -50,6 +50,11 @@ class Settings(BaseSettings):
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{host}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     @property
+    def DB_URL_SYNC(self):
+        host = [self.POSTGRES_HOST, self.POSTGRES_HOST_DOCKER][self.MODE == "DOCKER"]
+        return f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{host}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+
+    @property
     def REDIS_URL(self):
         host = [self.REDIS_HOST, self.REDIS_HOST_DOCKER][self.MODE == "DOCKER"]
         return f"redis://{host}:{self.REDIS_PORT}"

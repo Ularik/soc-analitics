@@ -3,6 +3,7 @@ from typing import Literal
 from datetime import datetime
 from uuid import UUID
 
+
 class ReportGenerateSchema(BaseModel):
     origin_name: str = Field(description="Организация")
     source_ip: str = Field(description="Источник угрозы. IP-адресс откуда пришел запрос")

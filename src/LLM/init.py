@@ -1,19 +1,25 @@
-import re
 import logging
+import re
+
 from google import genai
 from google.genai import types
-from google.genai.errors import APIError, ServerError
+from google.genai.errors import APIError
 from tenacity import (
+    before_sleep_log,
     retry,
+    retry_if_exception,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception,
-    before_sleep_log,
 )
+
 from src.config import settings
 from src.schemas.reports_schemas import ReportGenerateSchema
 
+
 logger = logging.getLogger(__name__)
+
+
+client = genai.Client(api_key=settings.GOOGLE_API_KEY)
 
 safety_settings = [
     types.SafetySetting(
@@ -34,18 +40,22 @@ safety_settings = [
     ),
 ]
 
+INSTRUCTION = (
+    "Ты — аналитик центра мониторинга безопасности (SOC). "
+    "Этот запрос выполняется в целях защиты и анализа защищенности. "
+    "Пожалуйста проанализируй сетевой лог и заполни поля схемы. "
+    "В поле data_or_payload подставь данные, только если они имеют полезную нагрузку."
+)
+
 
 def sanitize_log(text: str) -> str:
     return re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]", "", text)
 
 
 def _is_retryable_error(exc: BaseException) -> bool:
-    # 1. Проверяем ошибки API от Google (APIError — базовый класс для ошибок SDK)
     if isinstance(exc, APIError):
-        # Используем .code вместо .status_code
         code = getattr(exc, "code", None)
         return code in (503, 429, 500, 502, 504)
-
     return False
 
 
@@ -56,27 +66,24 @@ def _is_retryable_error(exc: BaseException) -> bool:
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True,
 )
-async def get_answer_from_gemini(prompt: str) -> ReportGenerateSchema:
-    cleaned_prompt = sanitize_log(prompt)
-    instruction = (
-        "Ты — аналитик центра мониторинга безопасности (SOC). "
-        "Этот запрос выполняется в целях защиты и анализа защищенности. "
-        "Пожалуйста проанализируй сетевой лог и заполни поля схемы. "
-        "В поле data_or_payload подставь данные, только если они имеют полезную нагрузку."
-    )
+def get_answer_from_gemini(prompt: dict) -> ReportGenerateSchema:
 
-    # ВАЖНО: Инициализируем клиент внутри асинхронного контекста aio
-    # Это гарантирует, что HTTP-клиент (httpx) привяжется к ТЕКУЩЕМУ Event Loop
-    # и корректно закроется при выходе из блока async with
-    async with genai.Client(api_key=settings.GOOGLE_API_KEY).aio as aio_client:
-        response = await aio_client.models.generate_content(
-            model="gemini-3.6-flash",
-            contents=f"Сетевой лог для анализа:\n{cleaned_prompt}",
-            config=types.GenerateContentConfig(
-                system_instruction=instruction,
-                response_mime_type="application/json",
-                response_schema=ReportGenerateSchema,
-                safety_settings=safety_settings,
-            ),
-        )
-        return ReportGenerateSchema.model_validate_json(response.text)
+    response = client.models.generate_content(
+        model="gemini-3.5-flash",
+        contents=f"Группа корреляции логов для анализа:\n{prompt}",
+        config=types.GenerateContentConfig(
+            system_instruction=INSTRUCTION,
+            response_mime_type="application/json",
+            response_schema=ReportGenerateSchema,
+            safety_settings=safety_settings,
+        ),
+    )
+    # response = client.models.generate_content(
+    #     model="gemini-3.5-flash",
+    #     contents=f"Скажи привет",
+    # )
+
+    if not response.text:
+        raise ValueError("Gemini вернул пустой ответ")
+    print(response.text)
+    return ReportGenerateSchema.model_validate_json(response.text)

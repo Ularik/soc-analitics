@@ -1,19 +1,18 @@
-import json
-
-from src.schemas.detection_events_schemas import DetectionNoticeResponse
-from src.redis.sync_redis import redis_incident_manager
+from src.schemas.detection_events_schemas import DetectionNoticeResponse, FilteredDetectionEventSchema, \
+    DetectionEventSchema
+from src.redis.init import redis_manager
 import ipaddress
-from datetime import date
 import logging
 
 logger = logging.getLogger(__name__)
+
 
 REDIS_INCIDENTS_KEY = "siem:processed_incidents"
 
 
 def is_request_new(
     detection_schema: DetectionNoticeResponse
-) -> list[dict]:
+) -> list[FilteredDetectionEventSchema]:
 
     notices = detection_schema.data.noticeList.result
 
@@ -34,7 +33,7 @@ def is_request_new(
         if not event_log.get("event_time"):
             continue
 
-        cached_event = redis_incident_manager.get_incident_etime(
+        cached_event = redis_manager.get_incident_etime(
             base_name=REDIS_INCIDENTS_KEY,
             inc_hash=inc_hash,
         )
@@ -45,24 +44,19 @@ def is_request_new(
             )
             continue
 
-        # Сохраняем конкретное событие
-        redis_incident_manager.save_incident(
-            base_name=REDIS_INCIDENTS_KEY,
-            inc_hash=inc_hash,
-            etime=event_log["event_time"],
+        new_events.append(
+            FilteredDetectionEventSchema(
+                data=notice,
+                event_hash=inc_hash,
+            )
         )
-
-        new_events.append({
-            "status": "NEW",
-            "data": notice,
-            "event_hash": inc_hash,
-        })
 
     return new_events
 
 
-def is_request_danger(event_log: dict) -> bool:
-    src_ip_str = event_log.get("s_ip")
+def is_remote_ip(event: DetectionEventSchema) -> bool:
+    event_log = event.parse_line()
+    src_ip_str = event_log.get('s_ip')
 
     if not src_ip_str:
         logger.warning("Системный трафик")
@@ -81,45 +75,3 @@ def is_request_danger(event_log: dict) -> bool:
         logger.error(f"Некорректный формат IP-адреса: {src_ip_str}")
         return False
 
-
-def build_attack_prompt(group: dict) -> str:
-
-    return f"""
-Проанализируй агрегированное событие информационной безопасности.
-
-Источник:
-{group["source_ip"]}
-
-Правило обнаружения:
-{group["attack"]}
-
-Средство обнаружения:
-{group["origin_name"]}
-
-Первое событие:
-{group["first_event_time"]}
-
-Последнее событие:
-{group["last_event_time"]}
-
-Количество событий:
-{group["count"]}
-
-Уникальные IP назначения:
-{group["destination_ips"]}
-
-Порты назначения:
-{group["destination_ports"]}
-
-Порты источника:
-{group["source_ports"]}
-
-Отдельные события:
-{group["events"]}
-
-Не анализируй бинарные данные, Base64,
-pcap и длинные payload.
-Используй только значимые признаки атаки.
-
-Сделай итоговый SOC-анализ.
-"""

@@ -11,3 +11,5 @@ bcrypt
 pyjwt
 celery
 tenacity
+pika
+psycopg2-binary
