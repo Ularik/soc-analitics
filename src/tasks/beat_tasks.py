@@ -9,6 +9,7 @@ from src.schemas.detection_events_schemas import DetectionNoticeResponse, Detect
     FilteredDetectionEventSchema
 from src.tasks.attack_tasks import analyze_attack_group
 
+
 logger = logging.getLogger(__name__)
 
 

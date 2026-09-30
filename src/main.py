@@ -1,4 +1,4 @@
-from contextlib import contextmanager
+from contextlib import asynccontextmanager  # 1. Меняем импорт
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_cache import FastAPICache
@@ -9,17 +9,16 @@ from src.logging_conf.logging_conf import setup_logging
 from src.rabbitmq.init import rabbit_client
 from src.redis.init import redis_manager
 from src.routers.reports import router as reports_router
-from src.routers.users import router as users_router
 
 
-@contextmanager
-def lifespan(app: FastAPI):
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     setup_logging()
     redis_manager.connect()
     rabbit_client.connect()
 
     # Инициализация fastapi-cache
-    FastAPICache.init(RedisBackend(redis_manager.redis), prefix="fastapi-cache")
+    FastAPICache.init(RedisBackend(redis_manager.client), prefix="fastapi-cache")
 
     yield
 
@@ -44,4 +43,3 @@ app.add_middleware(
 )
 
 app.include_router(reports_router)
-app.include_router(users_router)
